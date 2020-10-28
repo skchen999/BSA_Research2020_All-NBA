@@ -1,0 +1,483 @@
+---
+title: "BSA research"
+author: "Stephen Chen (304 906 403)"
+date: "10/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#url: "https://widgets.sports-reference.com/wg.fcgi?css=1&site=bbr&url=%2Fteams%2FSAS%2F2016.html&div=div_per_game"
+library(magrittr)
+library(textreadr)
+library(rvest)
+datalist <- list()
+
+a <- 1
+
+
+for (i in 2010:2019){
+
+url_first_part <- "https://widgets.sports-reference.com/wg.fcgi?css=1&site=bbr&url=%2Fleagues%2FNBA_"
+
+second_part <- "_advanced.html&div=div_advanced_stats"
+
+url <- paste0(url_first_part, i, second_part)
+
+advanced <- url %>% read_html() %>% html_table()
+
+advanced <- advanced[[1]]
+
+advanced$Season <- i
+
+datalist[[a]] <- advanced
+
+a <- a + 1
+
+}
+
+data <- do.call("rbind", datalist)
+data
+```
+
+
+```{r}
+nba = read.csv('/users/stephenchen/Downloads/nba_data.csv')
+allstars = read.csv('/users/stephenchen/Downloads/all_stars.csv')
+
+# rearrange columns: players 1st column, season 2nd column, drop duplicate season column
+nba = nba[,c(17,44,1:16,18:length(nba))]
+nba = nba[,-45]
+
+# only year 2010 and higher and delete first column
+allstars = allstars[allstars$i > 2009,]
+allstars = allstars[,c(2,3)]
+
+# fixing weird utf-8 characters
+levels(allstars$player)[levels(allstars$player) == "Nikola VuÄ\u008deviÄ\u0087"] = "Nikola Vucevic"
+levels(allstars$player)[levels(allstars$player) == "Nikola JokiÄ\u0087"] = "Nikola Jokic"
+levels(allstars$player)[levels(allstars$player) == "Goran DragiÄ\u0087"] = "Goran Dragic"
+levels(allstars$player)[levels(allstars$player) == "Manu GinÃ³bili"] = "Manu Ginobili"
+
+# drop unused levels in allstars
+allstars$player= droplevels(allstars$player)
+
+# 1 for All-star, 0 for not
+for(i in 1:nrow(allstars)){
+  player = levels(allstars$player)[levels(allstars$player) == allstars$player[i]]
+  year = allstars$i[i]
+  
+  year_char = paste(year - 1, '-', year %% 100,sep = '')
+  
+  nba[nba$PLAYER_NAME == player & nba$YEAR == year_char,]$ALL_STAR = 1
+}
+
+# scraping per, ows, dws, ws
+data2 = read.csv('/users/stephenchen/Downloads/nba_advancedV4.csv')
+data2 = data2[,c(3,ncol(data2),9,22:24)]
+data2$Player = as.character(data2$Player)
+data2$junk = iconv(data2$Player, from = 'latin1', to = 'ASCII')
+
+
+# fixing weird characters in per/ws data
+junk2 = as.data.frame(cbind('player' = levels(as.factor(data2$Player[is.na(data2$junk)])), 'translate' = NA))
+junk2$translate = as.character(junk2$translate)
+
+junk2$translate[junk2$player == 'Ã\u0081lex Abrines'] = 'Alex Abrines'
+junk2$translate[junk2$player == 'Alexis AjinÃ§a'] = 'Alexis Ajinca'
+junk2$translate[junk2$player == 'Ã\u0096mer AÅ\u009fÄ±k'] = 'Omer Asik'
+junk2$translate[junk2$player == 'Anderson VarejÃ£o'] = 'Anderson Varejao'
+junk2$translate[junk2$player == 'AndrÃ©s Nocioni'] = 'Andres Nocioni'
+junk2$translate[junk2$player == 'Andris BiedriÅ\u0086Å¡'] = 'Andris Biedrins'
+junk2$translate[junk2$player == 'Ã\u0081ngel Delgado'] = 'Angel Delgado'
+junk2$translate[junk2$player == 'Ante Å½iÅ¾iÄ\u0087'] = 'Ante Zizic'
+junk2$translate[junk2$player == 'Boban MarjanoviÄ\u0087'] = 'Boban Marjanovic'
+junk2$translate[junk2$player == 'Bogdan BogdanoviÄ\u0087'] = 'Bogdan Bogdanovic'
+junk2$translate[junk2$player == 'Bojan BogdanoviÄ\u0087'] = 'Bojan Bogdanovic'
+junk2[12,'translate']= 'Cristiano Felicio'
+junk2$translate[junk2$player == 'DÅ¾anan Musa'] = 'Dzanan Musa'
+junk2$translate[junk2$player == 'Dairis BertÄ\u0081ns'] = 'Dairis Bertans'
+junk2$translate[junk2$player == 'Damjan RudeÅ¾'] = 'Damjan Rudez'
+junk2[16,'translate'] = 'Dario Saric'
+junk2$translate[junk2$player == 'Darko MiliÄiÄ'] = 'Darko Milicic'
+junk2$translate[junk2$player == 'DÄvis BertÄns'] = 'Davis Bertans'
+junk2$translate[junk2$player == 'Dennis SchrÃ¶der'] = 'Dennis Schroder'
+junk2$translate[junk2$player == 'Donatas MotiejÅ«nas'] = 'Donatas Motiejunas'
+junk2$translate[junk2$player == 'DontÃ© Greene'] = 'Donte Greene'
+junk2$translate[junk2$player == 'Eduardo NÃ¡jera'] = 'Eduardo Najera'
+junk2$translate[junk2$player == 'Ersan Ä°lyasova'] = 'Ersan Ilyasova'
+junk2[24,'translate'] = 'Francisco Garcia'
+junk2$translate[junk2$player == 'Goran DragiÄ\u0087'] = 'Goran Dragic'
+junk2$translate[junk2$player == 'Greivis VÃ¡squez'] = 'Greivis Vasquez'
+junk2$translate[junk2$player == 'Gustavo AyÃ³n'] = 'Gustavo Ayon'
+junk2$translate[junk2$player == 'Hedo TÃ¼rkoÄ\u009flu'] = 'Hedo Turkoglu'
+junk2$translate[junk2$player == 'Jakob PÃ¶ltl'] = 'Jakob Poeltl'
+junk2$translate[junk2$player == 'Jan VeselÃ½'] = 'Jan Vesely'
+junk2$translate[junk2$player == 'Jonas ValanÄ\u008diÅ«nas'] = 'Jonas Valanciunas'
+junk2$translate[junk2$player == 'Jorge GutiÃ©rrez'] = 'Jorge Gutierrez'
+junk2$translate[junk2$player == 'JosÃ© CalderÃ³n'] = 'Jose Calderon'
+junk2$translate[junk2$player == 'Juan HernangÃ³mez'] = 'Juancho Hernangomez'
+junk2$translate[junk2$player == 'Jusuf NurkiÄ\u0087'] = 'Jusuf Nurkic'
+junk2$translate[junk2$player == 'Kevin SÃ©raphin'] = 'Kevin Seraphin'
+junk2$translate[junk2$player == 'Kristaps PorziÅ\u0086Ä£is'] = 'Kristaps Porzingis'
+junk2$translate[junk2$player == 'Luka DonÄ\u008diÄ\u0087'] = 'Luka Doncic'
+junk2$translate[junk2$player == 'Manu GinÃ³bili'] = 'Manu Ginobili'
+junk2$translate[junk2$player == 'MickaÃ«l Gelabale'] = 'Mickael Gelabale'
+junk2$translate[junk2$player == 'MickaÃ«l PiÃ©trus'] = 'Mickael Pietrus'
+junk2$translate[junk2$player == 'MiloÅ¡ TeodosiÄ\u0087'] = 'Milos Teodosic'
+junk2$translate[junk2$player == 'Mirza TeletoviÄ\u0087'] = 'Mirza Teletovic'
+junk2$translate[junk2$player == 'Nemanja NedoviÄ\u0087'] = 'Nemanja Nedovic'
+junk2$translate[junk2$player == 'NenÃª HilÃ¡rio'] = 'Nene'
+junk2$translate[junk2$player == 'Nenad KrstiÄ\u0087'] = 'Nenad Krstic'
+junk2$translate[junk2$player == 'NicolÃ¡s Brussino'] = 'Nicolas Brussino'
+junk2[48,'translate'] = 'Nicolas Laprovittola'
+junk2$translate[junk2$player == 'Nikola JokiÄ\u0087'] = 'Nikola Jokic'
+junk2$translate[junk2$player == 'Nikola MirotiÄ\u0087'] = 'Nikola Mirotic'
+junk2$translate[junk2$player == 'Nikola PekoviÄ\u0087'] = 'Nikola Pekovic'
+junk2$translate[junk2$player == 'Nikola VuÄ\u008deviÄ\u0087'] = 'Nikola Vucevic'
+junk2$translate[junk2$player == 'Ognjen KuzmiÄ\u0087'] = 'Ognjen Kuzmic'
+junk2$translate[junk2$player == 'Peja StojakoviÄ\u0087'] = 'Peja Stojakovic'
+junk2$translate[junk2$player == 'Pero AntiÄ\u0087'] = 'Pero Antic'
+junk2$translate[junk2$player == 'PrimoÅ¾ Brezec'] = 'Primoz Brezec'
+junk2$translate[junk2$player == 'Rasho NesteroviÄ\u0087'] = 'Rasho Nesterovic'
+junk2$translate[junk2$player == 'Roko UkiÄ\u0087'] = 'Roko Ukic'
+junk2$translate[junk2$player == 'Rudy FernÃ¡ndez'] = 'Rudy Fernandez'
+junk2$translate[junk2$player == 'Sasha PavloviÄ\u0087'] = 'Sasha Pavlovic'
+junk2$translate[junk2$player == 'Sasha VujaÄ\u008diÄ\u0087'] = 'Sasha Vujacic'
+junk2[62,'translate'] = 'Sergio Rodriguez'
+junk2$translate[junk2$player == 'Skal LabissiÃ¨re'] = 'Skal Labissiere'
+junk2$translate[junk2$player == 'Tibor PleiÃ\u009f'] = 'Tibor Pleiss'
+junk2$translate[junk2$player == 'TimothÃ© Luwawu-Cabarrot'] = 'Timothe Luwawu-Cabarrot'
+junk2$translate[junk2$player == 'TomÃ¡Å¡ SatoranskÃ½'] = 'Tomas Satoransky'
+junk2[67,'translate'] = 'Vitor Faverani'
+junk2$translate[junk2$player == 'Vladimir RadmanoviÄ\u0087'] = 'Vladimir Radmanovic'
+junk2$translate[junk2$player == 'Willy HernangÃ³mez'] = 'Willy Hernangomez'
+junk2$translate[junk2$player == 'Willy HernangÃ³mez'] = 'Willy Hernangomez'
+junk2$translate[junk2$player == 'Zoran DragiÄ\u0087'] = 'Zoran Dragic'
+
+# change the special character names in data2
+data2$Player = as.factor(data2$Player)
+for (i in 1:length(junk2$player)){
+  for (j in 1:length(levels(data2$Player))){
+    if (junk2$player[i] == levels(data2$Player)[j]){
+      levels(data2$Player)[j] = junk2$translate[i]
+    }
+  }
+}
+data2 = data2[,-c(7,8)]
+colnames(data2)[1:2] = c('PLAYER_NAME','YEAR')
+
+# removing names in data2 with *
+junk3 = as.data.frame(cbind('player' = levels(as.factor(as.character(data2$PLAYER_NAME[grepl("/|:|\\?|<|>|\\|\\\\|\\*",data2$PLAYER_NAME)]))), 'translate' = NA))
+junk3$player = as.character(junk3$player)
+junk3$translate = as.character(junk3$translate)
+
+for (i in 1:length(junk3$player)){
+  junk3$translate[i] = substr(junk3$player[i], 1, nchar(junk3$player[i]) - 1)
+}
+
+data2$test = data2$PLAYER_NAME
+for (i in 1:length(junk3$player)){
+  for (j in 1:length(levels(data2$PLAYER_NAME))){
+    if (junk3$player[i] == levels(data2$PLAYER_NAME)[j]){
+      levels(data2$PLAYER_NAME)[j] = junk3$translate[i]
+    }
+  }
+}
+data2 = data2[,-7]
+
+# consistent name spelling across nba and data2
+test = as.data.frame(cbind(levels(data2$PLAYER_NAME),NA))
+test$V1 = as.character(test$V1)
+test$V2 = as.character(test$V2)
+test$V3 = test$V1
+test$V3[2] = 'AJ Price'
+test$V3[148] = 'CJ Miles'
+test$V3[227] = 'DJ White'
+test$V3[326] = 'DJ Mbenga'
+test$V3[392] = 'Pooh Jeter'
+test$V3[483] = 'JR Smith'
+test$V3[871] = 'Mitchell Creek'
+test$V3[1010] = 'Flip Murray'
+test$V3[1095] = 'Svi Mykhailiuk'
+test$V3[1097] = 'TJ Leaf'
+test$V3[1103] = 'Taurean Prince'
+test$V3[1202] = 'Wes Iwundu'
+for (i in 1:length(test$V1)){
+  test$V2[i] = agrep(test$V3[i], levels(nba$PLAYER_NAME), value = TRUE)
+}
+test$V2[1233] = 'Zoran Dragic'
+test$V2[73] = 'Anthony Parker'
+test$V2[114] = 'Bojan Bogdanovic'
+test$V2[129] = 'Brandon Roy'
+test$V2[252] = 'Danny Green'
+test$V2[275] = 'Davis Bertans'
+test$V2[305] = 'Derrick Rose'
+test$V2[348] = 'Drew Gordon'
+test$V2[512] = 'James Jones'
+test$V2[533] = 'Jaren Jackson Jr.'
+test$V2[543] = 'Jason Collins'
+test$V2[563] = 'Jeff Foster'
+test$V2[543] = 'Jason Collins'
+test$V2[595] = 'Joe Johnson'
+test$V2[607] = 'John Collins'
+test$V2[633] = 'Jordan Hill'
+test$V2[647] = 'Josh Hart'
+test$V2[764] = 'Lou Williams'
+test$V2[784] = 'Malcolm Lee'
+test$V2[800] = 'Marcus Cousin'
+test$V2[805] = 'Marcus Morris Sr.'
+test$V2[848] = 'Michael Redd'
+test$V2[875] = 'Mo Williams'
+test$V2[899] = 'Nick Johnson'
+test$V2[894] = 'Nene'
+test$V2[920] = 'Omari Johnson'
+test$V2[1024] = 'Ryan Anderson'
+test$V2[1044] = 'Sean May'
+test$V2[1045] = 'Sean Williams'
+test$V2[1124] = 'Tim Frazier'
+test$V2[1138] = 'Tony Parker'
+test$V2[1157] = 'Trey Johnson'
+test$V2[1166] = 'Troy Williams'
+
+for (i in 1:length(test$V1)){
+  for (j in 1:length(levels(data2$PLAYER_NAME))){
+    if (test$V1[i] == levels(data2$PLAYER_NAME)[j]){
+      levels(data2$PLAYER_NAME)[j] = test$V2[i]
+    }
+  }
+}
+
+for (i in 1:length(levels(nba$PLAYER_NAME))){
+  if (!(levels(nba$PLAYER_NAME)[i] %in% data2$PLAYER_NAME)){
+    print(levels(nba$PLAYER_NAME)[i])
+  }
+}
+
+data2$test = data2$PLAYER_NAME
+
+data2 = data2[,-7]
+
+nba2 = merge(nba, data2, by = c('PLAYER_NAME', 'YEAR'), all.x = TRUE)
+write.csv(nba2, file = '/users/stephenchen/Documents/nba2.csv')
+
+nba2 = read.csv('/users/stephenchen/Documents/nba2.csv')
+nba2 = nba2[,c(2:20,23:45,52:55,46:51)]
+nba2 = nba2[,c(1,2,3,11,9,20,10,21,39,29,28,30,26,25,27,32,31,33,35,7,8,17,40,22,19,18,4,23,16,42,36,37,38,5,6,12,13,14,15,24,41,34,43:52)]
+
+adv = read.csv('/users/stephenchen/Downloads/advanced_stats.csv')
+adv = adv[,c(3,44,12:15,17:24,26:38,41:42)]
+test = merge(nba2, adv, by =c('PLAYER_NAME','YEAR'))
+test = test[,c(1:46,53:79,47:52)]
+write.csv(test, file = '/users/stephenchen/Documents/nba_final.csv')
+```
+
+```{r}
+library(dplyr)
+nba_final = read.csv('nba_final.csv')
+glimpse(nba_final)
+summary(nba_final)
+apply(nba_final,2,function(x) any(is.na(x)))
+nba_final = nba_final[-1996,]
+nba_final[929,'PER'] = 13.7
+write.csv(test, file = '/users/stephenchen/Documents/nba_final.csv')
+```
+
+```{r}
+nba_final %>% select(PTS,ALL_NBA) %>% ggplot(., aes(x = as.factor(ALL_NBA), y= PTS)) + geom_boxplot() + ggtitle('PTS VS ALL_NBA')
+nba_final %>% select(PER,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= PER)) + geom_boxplot() + ggtitle('PER VS ALL_NBA')
+nba_final %>% select(W_PCT,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= W_PCT)) + geom_boxplot() + ggtitle('W_PCT VS ALL_NBA')
+nba_final %>% select(DEF_WS,ALL_DEFENSE)%>% ggplot(., aes(x = as.factor(ALL_DEFENSE), y= DEF_WS)) + geom_boxplot() + ggtitle('DEF_WS VS ALL_DEFENSE')
+nba_final %>% select(BLK,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= BLK)) + geom_boxplot() + ggtitle('BLK VS ALL_DEFENSE')
+nba_final %>% select(BLK,STL, ALL_DEFENSE)%>% ggplot(., aes(x = STL, y= BLK, color = as.factor(ALL_DEFENSE))) + geom_point()
+nba_final %>% select(DEF_RATING,DEF_WS, ALL_DEFENSE)%>% ggplot(., aes(x = DEF_RATING, y= DEF_WS, color = as.factor(ALL_DEFENSE))) + geom_point()
+```
+
+```{r}
+library(ggplot2)
+nba_filter = read.csv('~/Downloads/nba_final_filtered.csv')
+
+a = nba_filter2 %>% select(PTS,ALL_NBA) %>% gather(.,ALL_NBA,PTS) %>% ggplot(., aes(x = as.factor(ALL_NBA), y= PTS, fill = as.factor(ALL_NBA))) + geom_boxplot() + ggtitle('PTS VS ALL_NBA') + theme(legend.position = 'bottom')
+
+b = nba_filter2 %>% select(PER,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= PER, fill = as.factor(ALL_NBA))) + geom_boxplot() + ggtitle('PER VS ALL_NBA') + theme(legend.position = 'bottom')
+grid.arrange(a,b,a,b,ncol = 2)
+
+nba_filter2 %>% select(W_PCT,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= W_PCT)) + geom_boxplot() + ggtitle('W_PCT VS ALL_NBA')
+nba_filter2 %>% select(DEF_WS,ALL_DEFENSE)%>% ggplot(., aes(x = as.factor(ALL_DEFENSE), y= DEF_WS)) + geom_boxplot() + ggtitle('DEF_WS VS ALL_DEFENSE')
+nba_filter2 %>% select(BLK,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= BLK)) + geom_boxplot() + ggtitle('BLK VS ALL_DEFENSE')
+nba_filter2 %>% select(DEF_RATING,ALL_NBA)%>% ggplot(., aes(x = as.factor(ALL_NBA), y= DEF_RATING)) + geom_boxplot()
+nba_filter2 %>% select(BLK,STL, ALL_DEFENSE)%>% ggplot(., aes(x = STL, y= BLK, color = as.factor(ALL_DEFENSE))) + geom_point()
+nba_filter2 %>% select(DEF_RATING,DEF_WS, ALL_DEFENSE)%>% ggplot(., aes(x = DEF_RATING, y= DEF_WS, color = as.factor(ALL_DEFENSE))) + geom_point()
+
+# ggplot facet wrap
+```
+
+```{r}
+nba_filter2 %>% select(PTS, PER, W_PCT, NBA_FANTASY_PTS,OWS,OFF_RATING,TS_PCT,USG_PCT,ALL_NBA) %>% 
+  mutate(ALL_NBA = factor(ALL_NBA, levels = c(0,1), labels = c("No","Yes"))) %>% 
+  gather("stat","value",-ALL_NBA) %>% 
+  ggplot(aes(x=ALL_NBA,y=value,fill=ALL_NBA)) +
+  geom_boxplot() +
+  labs(x="",y="Value",fill="All-NBA") +
+  facet_wrap(~stat,ncol=4,scales="free")
+ggsave("bsa_research_graphic1.png",height = 6, width = 8)
+
+
+```
+
+```{r}
+nba_filter %>% select(PLAYER_NAME, YEAR, W_PCT, ALL_NBA) %>% filter(ALL_NBA == 0) %>% arrange(desc(W_PCT))
+```
+
+REMOVE:
+sp_work_OFF_RATING
+sp_work_DEF_RATING
+sp_work_NET_RATING
+sp_work_PACE
+FGM_PG
+FGA_PG
+```{r}
+nba_filter2 = nba_filter[,c(-50,-52,-55,-70,-73,-74)]
+write.csv(nba_filter2, file = '/users/stephenchen/Documents/nba_filtered2.csv',row.names = FALSE)
+```
+
+```{r}
+library(dplyr)
+nba_filter2 = read.csv('nba_filtered2.csv')
+nba_allnba = nba_filter2 %>% select(-c(FIRST_TEAM,SECOND_TEAM,THIRD_TEAM,ALL_DEFENSE,ALL_STAR))
+nba_train =  nba_allnba %>% filter(YEAR == '2009-10' | YEAR == '2010-11' | YEAR == '2013-14' | YEAR == '2014-15' | YEAR == '2016-17' | YEAR == '2018-19')
+nba_test = nba_allnba %>% filter(YEAR == '2011-12' | YEAR == '2012-13' | YEAR == '2015-16' | YEAR == '2017-18')
+
+mod1 = glm(ALL_NBA ~ ., data = nba_train[,c(-1,-2)], family = binomial)
+summary(mod1)
+
+# all predictors
+pred1 = predict(mod1, type = 'response', newdata = nba_test[,c(-1,-2)])
+pred1_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred1)
+pred1_df %>% filter(score > 0.5)
+
+# pts + per
+mod2 = glm(ALL_NBA ~ PTS + PER, data = nba_train[,c(-1,-2)], family = binomial)
+pred2 = predict(mod2, type = 'response', newdata = nba_test[,c(-1,-2)])
+pred2_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred2)
+pred2_df %>% filter(score > 0.4)
+
+# best subsets regression
+# install.packages('leaps')
+library(leaps)
+regfwd = regsubsets(ALL_NBA ~ ., data = nba_train[,c(-1,-2)], method = 'forward', really.big = TRUE, nvmax = 20)
+plot(regfwd$rss[1:20])
+which(summary(regfwd)[[1]][10,]) # choosing 10 variables
+
+# choose 10 variable - BEST
+mod3 = glm(ALL_NBA ~ MIN + GP + PTS + FTA + TD3 + NBA_FANTASY_PTS + PER + WS + EFG_PCT + TS_PCT, data = nba_train[,c(-1,-2)], family = binomial)
+pred3 = predict(mod3, type = 'response', newdata = nba_test[,c(-1,-2)])
+pred3_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred3)
+pred3_df %>% filter(score > 0.5)
+pred3_df %>% arrange(desc(score)) %>% head(60) %>% arrange(PLAYER_NAME)
+summary(regfwd)[[1]]
+
+# VIF multicollinearity check
+library(car)
+vif(mod3)
+
+# best subsets regression - choosing 15 variables
+which(summary(regfwd)[[1]][15,])
+mod4 = glm(ALL_NBA ~ MIN + GP + PTS + FG3A + FTA + FT_PCT + OREB + TD3 + NBA_FANTASY_PTS + PER + OWS + WS + EFG_PCT + TS_PCT + POSS, data = nba_train[,c(-1,-2)], family = binomial)
+pred4 = predict(mod4, type= 'response', newdata = nba_test[,c(-1,-2)])
+pred4_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred4)
+pred4_df%>% filter(score > 0.30)
+
+# 20 variables
+mod5 = glm(ALL_NBA ~ MIN + GP + W_PCT + PTS + FG3A + FTA + FT_PCT + OREB + PF + TD3 + NBA_FANTASY_PTS + PER + OWS + WS + AST_TO + E_TOV_PCT + EFG_PCT + TS_PCT + PIE + POSS, data = nba_train[,c(-1,-2)], family = binomial)
+pred5 = predict(mod5, type= 'response', newdata = nba_test[,c(-1,-2)])
+pred5_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred5)
+pred5_df%>% filter(score > 0.50)
+which(summary(regfwd)[[1]][20,])
+
+# 10 variables with random forests
+library(randomForest)
+nba_allnba_train_10 = nba_train %>% select(MIN, GP, PTS, FTA, TD3, NBA_FANTASY_PTS, PER, WS, EFG_PCT, TS_PCT, ALL_NBA)
+mod6 = randomForest(ALL_NBA ~ .,data=nba_allnba_train_10,mtry=ncol(nba_allnba_train_10)-1,importance=TRUE)
+pred6 = predict(mod6,newdata = nba_test)
+pred6_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred6)
+pred6_df %>% filter(score>0.5) 
+pred6_df %>% arrange(desc(score)) %>% head(60) %>% arrange(PLAYER_NAME)
+summary(mod6)
+
+# 15 variables with random forests 
+nba_allnba_train_15 = nba_train %>% select(ALL_NBA,MIN,GP,PTS,FG3A,FTA,FT_PCT,OREB,TD3,NBA_FANTASY_PTS,PER,OWS,WS,EFG_PCT,TS_PCT,POSS)
+mod7 = randomForest(ALL_NBA ~ .,data=nba_allnba_train_15,mtry=ncol(nba_allnba_train_15)-1,importance=TRUE)
+pred7 = predict(mod7,newdata = nba_test)
+pred7_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred7)
+pred7_df %>% filter(score>0.45)
+
+# random forests importance
+mod8 = randomForest(ALL_NBA ~., data=nba_train[,c(-1,-2)],mtry=ceiling(sqrt(ncol(nba_test[,c(-1,-2)]))),importance=TRUE)
+rf_imp = as.data.frame(importance(mod8))
+
+# try lasso and ridge regression
+
+# lasso
+library(glmnet)
+nba_train_mat = model.matrix(ALL_NBA ~., data = nba_train[,c(-1,-2)])
+grid = 10 ^ seq(10,-2, length = 100)
+mod8 = glmnet(nba_train_mat, as.factor(nba_train$ALL_NBA), alpha = 1, family = 'binomial', lambda = grid)
+mod8_cv = cv.glmnet(nba_train_mat, (nba_train$ALL_NBA), alpha = 1)
+bestL = mod8_cv$lambda.min
+nba_test_mat = model.matrix(ALL_NBA ~., data = nba_test[,c(-1,-2)])
+pred8 = predict(mod8, s = bestL, newx = nba_test_mat)
+pred8_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = 1/(1+exp(-pred8)))
+pred8_df %>% filter(X1 > 0.5)
+pred8_df %>% arrange(desc(X1)) %>% head(60) %>% arrange(PLAYER_NAME)
+
+# ridge
+mod10 = glmnet(nba_train_mat, as.factor(nba_train$ALL_NBA), alpha = 0, family = 'binomial', lambda = grid)
+mod10_cv = cv.glmnet(nba_train_mat, (nba_train$ALL_NBA), alpha = 0)
+bestL = mod10_cv$lambda.min
+pred10 = predict(mod10, s = bestL, newx = nba_test_mat)
+pred10_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = 1/(1+exp(-pred10)))
+pred10_df %>% filter(X1 > 0.5)
+
+# select k-best
+mod9 = glm(ALL_NBA ~ PTS + PER + PIE + DD2 + FTM + FTA + NBA_FANTASY_PTS + PFD + OWS + WS, data = nba_train[,c(-1,-2)], family = binomial)
+pred9 = predict(mod9, type = 'response', newdata = nba_test[,c(-1,-2)])
+pred9_df = data.frame(PLAYER_NAME = nba_test$PLAYER_NAME, YEAR = nba_test$YEAR, score = pred9)
+pred9_df %>% filter(score>0.5)
+# MIN + GP + PTS + FTA + TD3 + NBA_FANTASY_PTS + PER + WS + EFG_PCT + TS_PCT from mod3
+```
+
+```{r}
+nba_allstars = nba_filter2 %>% select(-c(ALL_NBA,FIRST_TEAM,SECOND_TEAM,THIRD_TEAM,ALL_DEFENSE))
+nba_allstars_train = nba_allstars %>% filter(YEAR == '2009-10' | YEAR == '2010-11' | YEAR == '2013-14' | YEAR == '2014-15' | YEAR == '2016-17' | YEAR == '2018-19')
+nba_allstars_test = nba_allstars %>% filter(YEAR == '2011-12' | YEAR == '2012-13' | YEAR == '2015-16' | YEAR == '2017-18')
+
+as_regfwd = regsubsets(ALL_STAR ~ ., data = nba_allstars_train[,c(-1,-2)], method = 'forward', really.big = TRUE, nvmax = 20)
+which(summary(as_regfwd)[[1]][10,])
+as_mod1 = glm(ALL_STAR ~ MIN + GP + PTS + OREB + DD2 + WS + OREB_PCT + E_TOV_PCT + TS_PCT + E_USG_PCT, data = nba_allstars_train[,c(-1,-2)], family = binomial)
+as_pred1 = predict(as_mod1, type = 'response', newdata = nba_allstars_test[,c(-1,-2)])
+as_pred1_df = data.frame(PLAYER_NAME = nba_allstars_test$PLAYER_NAME, YEAR = nba_allstars_test$YEAR, score = as_pred1)
+as_pred1_df %>% filter(score>0.5)
+```
+
+```{r}
+nba_test %>% filter(ALL_NBA == 1) %>% select(PLAYER_NAME,YEAR)
+nba_allstars_test %>% filter(ALL_STAR == 1) %>% select(PLAYER_NAME,YEAR)
+```
+```{r}
+test = pred10_df
+test$check = ifelse(is.na(match(paste0(test$PLAYER_NAME,test$YEAR), paste0(nba_test %>% filter(ALL_NBA == 1) %>% select(PLAYER_NAME), nba_test %>% filter(ALL_NBA == 1) %>% select(YEAR)))), 'NO','YES')
+test %>% filter(X1>0.5)
+```
+
+```{r}
+bestsub10 = left_join(nba_test %>% filter(ALL_NBA == 1) %>% select(PLAYER_NAME,YEAR), pred3_df, by=c('PLAYER_NAME','YEAR'))
+write.csv(bestsub10,file = '/users/stephenchen/Documents/bestsub10.csv', row.names = FALSE)
+ridge = left_join(nba_test %>% filter(ALL_NBA == 1) %>% select(PLAYER_NAME,YEAR), pred10_df, by=c('PLAYER_NAME','YEAR'))
+write.csv(ridge, file = '/users/stephenchen/Documents/bsa_ridge_fit.csv', row.names = FALSE)
+```
+
